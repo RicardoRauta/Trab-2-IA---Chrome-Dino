@@ -1,5 +1,4 @@
-from math import tanh
-from pickle import FALSE
+from math import tanh, exp
 from unittest import result
 import pygame
 import os
@@ -239,21 +238,29 @@ class KeySimplestClassifier(KeyClassifier):
     def updateState(self, state):
         self.state = state
 
+def sigmoid(x):
+    if x >= 0:
+        z = exp(-x)
+        sig = 1 / (1 + z)
+        return sig
+    else:
+        z = exp(x)
+        sig = z / (1 + z)
+        return sig
+
 class KeyRicClassifier(KeyClassifier):
     def __init__(self, state):
         self.state = state
 
     def keySelector(self, obDistance, obHeight, scSpeed, obWidth, diHeight):
         firstOp = self.neurons5to4([obDistance, obWidth, obHeight, scSpeed, diHeight])
-        #secondOp = self.neurons4to4(firstOp)
-        lastOp = self.neurons4to2(firstOp)
-        #result = self.getResult(firstOp)
-        #print(obDistance, obHeight, scSpeed, obWidth, diHeight)
-        #print(firstOp[0], firstOp[1], result)
-        #print(firstOp)
-        if lastOp[0] == 1:
+        secondOp = self.neurons4to4(firstOp)
+        lastOp = self.neurons4to2(secondOp)
+
+        print(lastOp)
+        if lastOp[0] > 0.95:
             return "K_UP"
-        elif lastOp[1] == 1:
+        elif lastOp[1] > 0.95:
                 return "K_DOWN"
         return "K_NO"
 
@@ -263,18 +270,10 @@ class KeyRicClassifier(KeyClassifier):
         sum3 = value[0] * self.state[10]  + value[1] * self.state[11]  + value[2] * self.state[12]  + value[3] * self.state[13]  + value[4] * self.state[14]
         sum4 = value[0] * self.state[15]  + value[1] * self.state[16]  + value[2] * self.state[17]  + value[3] * self.state[18]  + value[4] * self.state[19]
 
-        neuron1 = 1
-        if sum1 < 0:
-            neuron1 = 0
-        neuron2 = 1
-        if sum2 < 0:
-            neuron2 = 0
-        neuron3 = 1
-        if sum3 < 0:
-            neuron3 = 0
-        neuron4 = 1
-        if sum4 < 0:
-            neuron4 = 0
+        neuron1 = sigmoid(sum1)
+        neuron2 = sigmoid(sum2)
+        neuron3 = sigmoid(sum3)
+        neuron4 = sigmoid(sum4)
 
         return [neuron1, neuron2, neuron3, neuron4]
 
@@ -284,24 +283,20 @@ class KeyRicClassifier(KeyClassifier):
         sum3 = value[0] * self.state[8+ 20]  + value[1] * self.state[9+ 20]  + value[2] * self.state[10+ 20]  + value[3] * self.state[11+ 20]
         sum4 = value[0] * self.state[12+ 20]  + value[1] * self.state[13+ 20]  + value[2] * self.state[14+ 20]  + value[3] * self.state[15+ 20]
 
-        neuron1 = 1
-        if sum1 < 0:
-            neuron1 = 0
-        neuron2 = 1
-        if sum2 < 0:
-            neuron2 = 0
-        neuron3 = 1
-        if sum3 < 0:
-            neuron3 = 0
-        neuron4 = 1
-        if sum4 < 0:
-            neuron4 = 0
+        neuron1 = sigmoid(sum1)
+        neuron2 = sigmoid(sum2)
+        neuron3 = sigmoid(sum3)
+        neuron4 = sigmoid(sum4)
 
         return [neuron1, neuron2, neuron3, neuron4]
 
     def neurons4to2(self, values):
-        neuron1 = values[0] * self.state[16]  + values[1] * self.state[17] + values[2] * self.state[18]  + values[3] * self.state[19]
-        neuron2 = values[0] * self.state[20]  + values[1] * self.state[21] + values[2] * self.state[22]  + values[3] * self.state[23]
+        i = 20
+        sum1 = values[0] * self.state[16 + i]  + values[1] * self.state[17 + i] + values[2] * self.state[18 + i]  + values[3] * self.state[19 + i]
+        sum2 = values[0] * self.state[20 + i]  + values[1] * self.state[21 + i] + values[2] * self.state[22 + i]  + values[3] * self.state[23 + i]
+
+        neuron1 = sigmoid(sum1)
+        neuron2 = sigmoid(sum2)
 
         return [neuron1, neuron2]
 
@@ -498,7 +493,7 @@ def begin(max_time):
     generation = 1
     
     for it in range(30):
-        newState = [random.randint(-50, 50) for col in range(25)]
+        newState = [random.randint(-50, 50) for col in range(45)]
         aiPlayer = KeyRicClassifier(newState)
         res, value = manyPlaysResults(plays)
         print(newState, generation, it+1, value)
