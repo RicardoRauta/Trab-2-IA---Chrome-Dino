@@ -427,7 +427,8 @@ def change_state_Ric(state, position):
         ns += 100
     if ns > 50:
         ns -= 100
-    return aux[:position] + [(ns)] + aux[position + 1:]
+    newState = aux[:position] + [(ns)] + aux[position + 1:]
+    return mutation(newState, 0.1)
 
 # Neighborhood
 
@@ -451,11 +452,25 @@ def generate_neighborhood_Ric(state):
     state_size = len(state[0][1])
     for j in range(1):
         for i in range(state_size):
-            new_states = [change_state_Ric(state[j][1], i), change_state_Ric(state[j][1], i), change_state_Ric(state[j][1], i)]
+            state_to_change = state[j][1]
+            new_states = [change_state_Ric(state_to_change, i)]
             for s in new_states:
                 if s != []:
                     neighborhood.append(s)
     return neighborhood
+
+# Mutation
+
+def mutation(state, mutatationRate):
+    aux = state.copy()
+    state_size = len(state)
+    for it in range(state_size):
+        rand = random.randint(0, 100)
+        if rand < mutatationRate*100:
+            aux[it] =  random.randint(-50, 50)
+    return aux
+
+# Crossover
 
 # Gradiente Ascent
 
@@ -485,7 +500,7 @@ def begin(max_time):
     f.close()
     plays = 3
     start = time.process_time()
-    res, max_value = [0,0]
+    res = 0
     states = []
     better = True
     end = 0
@@ -498,7 +513,6 @@ def begin(max_time):
         print(newState, generation, it+1, value)
         states.append([value, newState])
 
-    
     states.sort()
     states.reverse()
     saveStates(states, generation, time.process_time() - start)
@@ -523,9 +537,10 @@ def begin(max_time):
         states.reverse()
         saveStates(states, generation, time.process_time() - start)
         generation+=1
-    state = states[0]
-    print(states)
-    return state, max_value
+    best_state = states[0][1]
+    best_value = states[0][0]
+    print(best_state)
+    return best_state, best_value
 
 def saveStates(states, gen, time):
     f = open("log.txt", "a")
@@ -551,21 +566,13 @@ def manyPlaysResults(rounds):
 
 def main():
     global aiPlayer
-
-    
-    #initial_state = [random.randint(-500, 500), random.randint(-500, 500), random.randint(-500, 500), random.randint(-500, 500), random.randint(-500, 500)
-    #               , random.randint(-500, 500), random.randint(-500, 500), random.randint(-500, 500), random.randint(-500, 500), random.randint(-500, 500)]
-
-    #aiPlayer = KeyRicClassifier(initial_state)
-    best_state, best_value = begin(3600) 
+    best_state, best_value = begin(3600)
     aiPlayer = KeyRicClassifier(best_state)
     res, value = manyPlaysResults(30)
     npRes = np.asarray(res)
     print(res, npRes.mean(), npRes.std(), value)
+    f = open("log.txt", "a")
+    f.write("Result: \n" + str(res) + "\nMean: " + str(npRes.mean()) + "\nStd: " + str(npRes.std()) + "\nValue: " + str(value))
 
 
 main()
-
-# arctan(x)
-# x = +-1.5574078       y = +-1
-# x = +-0.54630249      y = +-0.5
