@@ -257,10 +257,9 @@ class KeyRicClassifier(KeyClassifier):
         secondOp = self.neurons4to4(firstOp)
         lastOp = self.neurons4to2(secondOp)
 
-        print(lastOp)
-        if lastOp[0] > 0.95:
+        if lastOp[0] - lastOp[1] > 0.5:
             return "K_UP"
-        elif lastOp[1] > 0.95:
+        elif lastOp[1] - lastOp[0] > 0.5:
                 return "K_DOWN"
         return "K_NO"
 
