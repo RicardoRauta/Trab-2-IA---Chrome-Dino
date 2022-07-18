@@ -440,7 +440,7 @@ def generate_x_neighborhood_Ric(state, x):
     neighborhood = []
     state_size = len(state)
     for it in range(x):
-        posToGet = random.randint(0,state_size)
+        posToGet = random.randint(0,state_size-1)
         state_to_change = state
         new_states = [change_state_Ric(state_to_change, posToGet)]
         for s in new_states:
