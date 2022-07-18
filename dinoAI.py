@@ -436,6 +436,31 @@ def generate_neighborhood_Ric(state, p):
                         neighborhood.append(s)
     return neighborhood
 
+def generate_x_neighborhood_Ric(state, x):
+    neighborhood = []
+    state_size = len(state)
+    for it in range(x):
+        posToGet = random.randint(0,state_size)
+        state_to_change = state
+        new_states = [change_state_Ric(state_to_change, posToGet)]
+        for s in new_states:
+            if s != []:
+                neighborhood.append(s)
+    return neighborhood
+
+def generate_states(states, neighborhoodQtd, statesToMakeNeighborhood, outputQtd):
+    bests = states[0 : statesToMakeNeighborhood-1]
+    mutateQtd = outputQtd - (neighborhoodQtd + 1) * statesToMakeNeighborhood
+    toMutate = states[statesToMakeNeighborhood : statesToMakeNeighborhood + mutateQtd]
+    auxMutate = []
+    for it in range(mutateQtd):
+        mutateRate = 1 - toMutate[it][0] / bests[0][0]
+        auxMutate.append(toMutate[it][1], mutateRate)
+    auxNeighborhood = []
+    for it in range(statesToMakeNeighborhood):
+        auxNeighborhood += generate_x_neighborhood_Ric(bests[it][1], neighborhoodQtd)
+        auxNeighborhood.append(bests[it][1])
+    return auxNeighborhood + auxMutate
 # Mutation
 
 def mutation(state, mutatationRate):
@@ -447,6 +472,11 @@ def mutation(state, mutatationRate):
             aux[it] =  random.randint(-50, 50)
     return aux
 
+def mutationAll(states, mutatationRate):
+    aux = []
+    states_qtd = len(states)
+    for it in range(states_qtd):
+        aux.append(mutation(states[it][1], mutatationRate))
 # Crossover
 
 # Gradiente Ascent
@@ -475,7 +505,7 @@ def begin(max_time):
     f = open("log.txt", "w")
     f.write("")
     f.close()
-    plays = 3
+    plays = 1
     start = time.process_time()
     res = 0
     states = []
@@ -500,16 +530,17 @@ def begin(max_time):
         state1 = states[0][1]
         state2 = states[1][1]
         state3 = states[2][1]
-        neighborhood1 = generate_neighborhood_Ric(state1, 0.3)
-        neighborhood2 = generate_neighborhood_Ric(state2, 0.3)
-        neighborhood3 = generate_neighborhood_Ric(state3, 0.3)
+        #neighborhood1 = generate_neighborhood_Ric(state1, 0.3)
+        #neighborhood2 = generate_neighborhood_Ric(state2, 0.3)
+        #neighborhood3 = generate_neighborhood_Ric(state3, 0.3)
 
-        neighborhood = neighborhood1 + neighborhood2 + neighborhood3
-
+        #neighborhood = neighborhood1 + neighborhood2 + neighborhood3
+        
         print("Time: ", time.process_time() - start)
-        neighborhood.append(state1)
-        neighborhood.append(state2)
-        neighborhood.append(state3)
+        #neighborhood.append(state1)
+        #neighborhood.append(state2)
+        #neighborhood.append(state3)
+        neighborhood = generate_states(states, 5, 3, 30)
         states.clear()
 
         for s in neighborhood:
