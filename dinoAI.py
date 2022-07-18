@@ -249,13 +249,15 @@ def sigmoid(x):
         return sig
 
 class KeyRicClassifier(KeyClassifier):
-    def __init__(self, state):
-        self.state = state
+    def __init__(self, weight):
+        self.weight = weight
 
     def keySelector(self, obDistance, obHeight, scSpeed, obWidth, diHeight):
-        firstOp = self.neurons5to4([obDistance, obWidth, obHeight, scSpeed, diHeight])
-        secondOp = self.neurons4to4(firstOp)
-        lastOp = self.neurons4to2(secondOp)
+        op1, pos = self.neuronsXtoY([obDistance, obWidth, obHeight, scSpeed, diHeight], 5, 6, 0)
+        op2, pos = self.neuronsXtoY(op1, 6, 6, pos)
+        op3, pos = self.neuronsXtoY(op2, 6, 6, pos)
+        op4, pos = self.neuronsXtoY(op3, 6, 6, pos)
+        lastOp, pos = self.neuronsXtoY(op4, 6, 2, pos)# qtdWeight = 5*6+3*6*6+6*2 = 150
 
         if lastOp[0] - lastOp[1] > 0.5:
             return "K_UP"
@@ -263,44 +265,18 @@ class KeyRicClassifier(KeyClassifier):
                 return "K_DOWN"
         return "K_NO"
 
-    def neurons5to4(self, value):
-        sum1 = value[0] * self.state[0]  + value[1] * self.state[1]  + value[2] * self.state[2]  + value[3] * self.state[3]  + value[4] * self.state[4]
-        sum2 = value[0] * self.state[5]  + value[1] * self.state[6]  + value[2] * self.state[7]  + value[3] * self.state[8]  + value[4] * self.state[9]
-        sum3 = value[0] * self.state[10]  + value[1] * self.state[11]  + value[2] * self.state[12]  + value[3] * self.state[13]  + value[4] * self.state[14]
-        sum4 = value[0] * self.state[15]  + value[1] * self.state[16]  + value[2] * self.state[17]  + value[3] * self.state[18]  + value[4] * self.state[19]
+    def neuronsXtoY(self, value, input, output, position):
+        neurons = []
+        for it in range(output):
+            sum = 0
+            for it2 in range(input):
+                sum += value[it2] * self.weight[position]
+                position += 1
+            neurons.append(sigmoid(sum))
+        return [neurons, position]
 
-        neuron1 = sigmoid(sum1)
-        neuron2 = sigmoid(sum2)
-        neuron3 = sigmoid(sum3)
-        neuron4 = sigmoid(sum4)
-
-        return [neuron1, neuron2, neuron3, neuron4]
-
-    def neurons4to4(self, value):
-        sum1 = value[0] * self.state[0+ 20]  + value[1] * self.state[1+ 20]  + value[2] * self.state[2+ 20]  + value[3] * self.state[3+ 20]
-        sum2 = value[0] * self.state[4+ 20]  + value[1] * self.state[5+ 20]  + value[2] * self.state[6+ 20]  + value[3] * self.state[7+ 20]
-        sum3 = value[0] * self.state[8+ 20]  + value[1] * self.state[9+ 20]  + value[2] * self.state[10+ 20]  + value[3] * self.state[11+ 20]
-        sum4 = value[0] * self.state[12+ 20]  + value[1] * self.state[13+ 20]  + value[2] * self.state[14+ 20]  + value[3] * self.state[15+ 20]
-
-        neuron1 = sigmoid(sum1)
-        neuron2 = sigmoid(sum2)
-        neuron3 = sigmoid(sum3)
-        neuron4 = sigmoid(sum4)
-
-        return [neuron1, neuron2, neuron3, neuron4]
-
-    def neurons4to2(self, values):
-        i = 20
-        sum1 = values[0] * self.state[16 + i]  + values[1] * self.state[17 + i] + values[2] * self.state[18 + i]  + values[3] * self.state[19 + i]
-        sum2 = values[0] * self.state[20 + i]  + values[1] * self.state[21 + i] + values[2] * self.state[22 + i]  + values[3] * self.state[23 + i]
-
-        neuron1 = sigmoid(sum1)
-        neuron2 = sigmoid(sum2)
-
-        return [neuron1, neuron2]
-
-    def updateState(self, state):
-        self.state = state
+    def updateWeight(self, weight):
+        self.weight = weight
 
 
 def playerKeySelector():
@@ -447,16 +423,17 @@ def generate_neighborhood(state):
                 neighborhood.append(s)
     return neighborhood
 
-def generate_neighborhood_Ric(state):
+def generate_neighborhood_Ric(state, p):
     neighborhood = []
-    state_size = len(state[0][1])
+    state_size = len(state)
     for j in range(1):
         for i in range(state_size):
-            state_to_change = state[j][1]
-            new_states = [change_state_Ric(state_to_change, i)]
-            for s in new_states:
-                if s != []:
-                    neighborhood.append(s)
+            if random.randint(0,100) < 100*p:
+                state_to_change = state
+                new_states = [change_state_Ric(state_to_change, i)]
+                for s in new_states:
+                    if s != []:
+                        neighborhood.append(s)
     return neighborhood
 
 # Mutation
@@ -507,7 +484,7 @@ def begin(max_time):
     generation = 1
     
     for it in range(30):
-        newState = [random.randint(-50, 50) for col in range(45)]
+        newState = [random.randint(-50, 50) for col in range(150)]
         aiPlayer = KeyRicClassifier(newState)
         res, value = manyPlaysResults(plays)
         print(newState, generation, it+1, value)
@@ -520,9 +497,19 @@ def begin(max_time):
     generation+=1
     while end - start <= max_time:
         it = 0
-        neighborhood = generate_neighborhood_Ric(states)
+        state1 = states[0][1]
+        state2 = states[1][1]
+        state3 = states[2][1]
+        neighborhood1 = generate_neighborhood_Ric(state1, 0.3)
+        neighborhood2 = generate_neighborhood_Ric(state2, 0.3)
+        neighborhood3 = generate_neighborhood_Ric(state3, 0.3)
+
+        neighborhood = neighborhood1 + neighborhood2 + neighborhood3
+
         print("Time: ", time.process_time() - start)
-        neighborhood.append(states[0][1])
+        neighborhood.append(state1)
+        neighborhood.append(state2)
+        neighborhood.append(state3)
         states.clear()
 
         for s in neighborhood:
