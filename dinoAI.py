@@ -259,9 +259,9 @@ class KeyRicClassifier(KeyClassifier):
         op4, pos = self.neuronsXtoY(op3, 6, 6, pos)
         lastOp, pos = self.neuronsXtoY(op4, 6, 2, pos)# qtdWeight = 5*6+3*6*6+6*2 = 150
 
-        if lastOp[0] - lastOp[1] > 0.5:
+        if lastOp[0] > lastOp[1] and lastOp[0] > 0.9:
             return "K_UP"
-        elif lastOp[1] - lastOp[0] > 0.5:
+        elif lastOp[1] > lastOp[0] and lastOp[1] > 0.9:
                 return "K_DOWN"
         return "K_NO"
 
@@ -449,13 +449,13 @@ def generate_x_neighborhood_Ric(state, x):
     return neighborhood
 
 def generate_states(states, neighborhoodQtd, statesToMakeNeighborhood, outputQtd):
-    bests = states[0 : statesToMakeNeighborhood-1]
+    bests = states[0 : statesToMakeNeighborhood]
     mutateQtd = outputQtd - (neighborhoodQtd + 1) * statesToMakeNeighborhood
     toMutate = states[statesToMakeNeighborhood : statesToMakeNeighborhood + mutateQtd]
     auxMutate = []
     for it in range(mutateQtd):
         mutateRate = 1 - toMutate[it][0] / bests[0][0]
-        auxMutate.append(toMutate[it][1], mutateRate)
+        auxMutate.append(mutation(toMutate[it][1], mutateRate))
     auxNeighborhood = []
     for it in range(statesToMakeNeighborhood):
         auxNeighborhood += generate_x_neighborhood_Ric(bests[it][1], neighborhoodQtd)
@@ -505,7 +505,7 @@ def begin(max_time):
     f = open("log.txt", "w")
     f.write("")
     f.close()
-    plays = 1
+    plays = 3
     start = time.process_time()
     res = 0
     states = []
@@ -540,7 +540,7 @@ def begin(max_time):
         #neighborhood.append(state1)
         #neighborhood.append(state2)
         #neighborhood.append(state3)
-        neighborhood = generate_states(states, 5, 3, 30)
+        neighborhood = generate_states(states, 5, 3, 30) #gerar 5 vizinhos para cada um dos 3 melhores
         states.clear()
 
         for s in neighborhood:
