@@ -253,11 +253,11 @@ class KeyRicClassifier(KeyClassifier):
         self.weight = weight
 
     def keySelector(self, obDistance, obHeight, scSpeed, obWidth, diHeight):
-        op1, pos = self.neuronsXtoY([obDistance, obWidth, obHeight, scSpeed, diHeight], 5, 6, 0)
-        op2, pos = self.neuronsXtoY(op1, 6, 6, pos)
-        op3, pos = self.neuronsXtoY(op2, 6, 6, pos)
-        op4, pos = self.neuronsXtoY(op3, 6, 6, pos)
-        lastOp, pos = self.neuronsXtoY(op4, 6, 2, pos)# qtdWeight = 5*6+3*6*6+6*2 = 150
+        op1, pos = self.neuronsXtoY([obDistance, obWidth, obHeight, scSpeed, diHeight], 5, 7, 0)
+        op2, pos = self.neuronsXtoY(op1, 7, 7, pos)
+        op3, pos = self.neuronsXtoY(op2, 7, 7, pos)
+        op4, pos = self.neuronsXtoY(op3, 7, 7, pos)
+        lastOp, pos = self.neuronsXtoY(op4, 7, 2, pos)# qtdWeight = 5*7+3*7*7+7*2 = 196
 
         if lastOp[0] > lastOp[1] and lastOp[0] > 0.9:
             return "K_UP"
@@ -373,12 +373,12 @@ def playGame():
 
         score()
 
-        clock.tick(60)
+        clock.tick(600)#60
         pygame.display.update()
 
         for obstacle in obstacles:
             if player.dino_rect.colliderect(obstacle.rect):
-                pygame.time.delay(2000)
+                pygame.time.delay(200)#2000
                 death_count += 1
                 return points
 
@@ -461,6 +461,7 @@ def generate_states(states, neighborhoodQtd, statesToMakeNeighborhood, outputQtd
         auxNeighborhood += generate_x_neighborhood_Ric(bests[it][1], neighborhoodQtd)
         auxNeighborhood.append(bests[it][1])
     return auxNeighborhood + auxMutate
+
 # Mutation
 
 def mutation(state, mutatationRate):
@@ -477,6 +478,7 @@ def mutationAll(states, mutatationRate):
     states_qtd = len(states)
     for it in range(states_qtd):
         aux.append(mutation(states[it][1], mutatationRate))
+        
 # Crossover
 
 # Gradiente Ascent
@@ -514,10 +516,11 @@ def begin(max_time):
     generation = 1
     
     for it in range(30):
-        newState = [random.randint(-50, 50) for col in range(150)]
+        newState = [random.randint(-50, 50) for col in range(196)]
         aiPlayer = KeyRicClassifier(newState)
         res, value = manyPlaysResults(plays)
-        print(newState, generation, it+1, value)
+        #print(newState, generation, it+1, value)
+        print(generation, it+1, value)
         states.append([value, newState])
 
     states.sort()
@@ -527,20 +530,10 @@ def begin(max_time):
     generation+=1
     while end - start <= max_time:
         it = 0
-        state1 = states[0][1]
-        state2 = states[1][1]
-        state3 = states[2][1]
-        #neighborhood1 = generate_neighborhood_Ric(state1, 0.3)
-        #neighborhood2 = generate_neighborhood_Ric(state2, 0.3)
-        #neighborhood3 = generate_neighborhood_Ric(state3, 0.3)
-
-        #neighborhood = neighborhood1 + neighborhood2 + neighborhood3
         
         print("Time: ", time.process_time() - start)
-        #neighborhood.append(state1)
-        #neighborhood.append(state2)
-        #neighborhood.append(state3)
-        neighborhood = generate_states(states, 5, 3, 30) #gerar 5 vizinhos para cada um dos 3 melhores
+        
+        neighborhood = generate_states(states, 35, 2, 80) #gerar 35 vizinhos para cada um dos 2 melhores
         states.clear()
 
         for s in neighborhood:
@@ -548,7 +541,8 @@ def begin(max_time):
             aiPlayer = KeyRicClassifier(s)
             
             res, value = manyPlaysResults(plays)
-            print(s, generation, it, value)
+            #print(s, generation, it, value)
+            print(generation, it, value)
             states.append([value, s])
         end = time.process_time()
         states.sort()
@@ -594,3 +588,7 @@ def main():
 
 
 main()
+
+# 5-6-6-6-2: 369.34166666666664 187.4603233946379 181.88134327202874
+# 5-7-7-7-2:
+#
