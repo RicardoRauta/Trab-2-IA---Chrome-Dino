@@ -256,8 +256,7 @@ class KeyRicClassifier(KeyClassifier):
         op1, pos = self.neuronsXtoY([obDistance, obWidth, obHeight, scSpeed, diHeight], 5, 7, 0)
         op2, pos = self.neuronsXtoY(op1, 7, 7, pos)
         op3, pos = self.neuronsXtoY(op2, 7, 7, pos)
-        op4, pos = self.neuronsXtoY(op3, 7, 7, pos)
-        lastOp, pos = self.neuronsXtoY(op4, 7, 2, pos)# qtdWeight = 5*7+3*7*7+7*2 = 196
+        lastOp, pos = self.neuronsXtoY(op3, 7, 2, pos)# qtdWeight = 5*7+2*7*7+7*2 = 147
 
         if lastOp[0] > lastOp[1] and lastOp[0] > 0.9:
             return "K_UP"
@@ -448,19 +447,22 @@ def generate_x_neighborhood_Ric(state, x):
                 neighborhood.append(s)
     return neighborhood
 
-def generate_states(states, neighborhoodQtd, statesToMakeNeighborhood, outputQtd):
-    bests = states[0 : statesToMakeNeighborhood]
-    mutateQtd = outputQtd - (neighborhoodQtd + 1) * statesToMakeNeighborhood
-    toMutate = states[statesToMakeNeighborhood : statesToMakeNeighborhood + mutateQtd]
-    auxMutate = []
-    for it in range(mutateQtd):
-        mutateRate = 1 - toMutate[it][0] / bests[0][0]
-        auxMutate.append(mutation(toMutate[it][1], mutateRate))
+def generate_states(states, neighborhoodQtd, bestStatesQtd, crossoverQtd):
+    bests = states[0 : bestStatesQtd]
+    
     auxNeighborhood = []
-    for it in range(statesToMakeNeighborhood):
+    for it in range(bestStatesQtd):
         auxNeighborhood += generate_x_neighborhood_Ric(bests[it][1], neighborhoodQtd)
         auxNeighborhood.append(bests[it][1])
-    return auxNeighborhood + auxMutate
+
+    auxCrossover = []
+    for it in range(bestStatesQtd):
+        for it2 in range(bestStatesQtd):
+            if it == it2:
+                continue
+            auxCrossover.append(mutation(bests[it][1], crossoverQtd))
+
+    return auxNeighborhood + auxCrossover
 
 # Mutation
 
@@ -480,6 +482,13 @@ def mutationAll(states, mutatationRate):
         aux.append(mutation(states[it][1], mutatationRate))
         
 # Crossover
+
+def crossover(state1, state2, childrensQtd):
+    childrens = []
+    for it in range(childrensQtd):
+        randPos = random.randint(0, len(state1))
+        childrens.append(mutation(state1[:randPos] + state2[randPos + 1:], 0.1))
+    return childrens
 
 # Gradiente Ascent
 
@@ -516,7 +525,7 @@ def begin(max_time):
     generation = 1
     
     for it in range(30):
-        newState = [random.randint(-50, 50) for col in range(196)]
+        newState = [random.randint(-50, 50) for col in range(147)]
         aiPlayer = KeyRicClassifier(newState)
         res, value = manyPlaysResults(plays)
         #print(newState, generation, it+1, value)
@@ -533,7 +542,7 @@ def begin(max_time):
         
         print("Time: ", time.process_time() - start)
         
-        neighborhood = generate_states(states, 35, 2, 80) #gerar 35 vizinhos para cada um dos 2 melhores
+        neighborhood = generate_states(states, 10, 3, 8) #gerar 10 vizinhos para cada um dos 3 melhores e (8 crossovers * 3 * 2) 
         states.clear()
 
         for s in neighborhood:
