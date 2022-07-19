@@ -578,7 +578,7 @@ def manyPlaysResults(rounds):
 
 def main():
     global aiPlayer
-    best_state, best_value = begin(3600)
+    best_state, best_value = begin(24*60*60) # rodar por 24 horas
     aiPlayer = KeyRicClassifier(best_state)
     res, value = manyPlaysResults(30)
     npRes = np.asarray(res)
