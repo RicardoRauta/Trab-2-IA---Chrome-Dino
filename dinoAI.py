@@ -460,7 +460,7 @@ def generate_states(states, neighborhoodQtd, bestStatesQtd, crossoverQtd):
         for it2 in range(bestStatesQtd):
             if it == it2:
                 continue
-            auxCrossover.append(mutation(bests[it][1], crossoverQtd))
+            auxCrossover += crossover(bests[it][1], bests[it2][1], crossoverQtd)
 
     return auxNeighborhood + auxCrossover
 
@@ -487,7 +487,9 @@ def crossover(state1, state2, childrensQtd):
     childrens = []
     for it in range(childrensQtd):
         randPos = random.randint(0, len(state1))
-        childrens.append(mutation(state1[:randPos] + state2[randPos + 1:], 0.1))
+        newState = state1[:randPos] + state2[randPos:]
+        print(len(newState))
+        childrens.append(mutation(newState, 0.1))
     return childrens
 
 # Gradiente Ascent
