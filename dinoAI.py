@@ -256,13 +256,13 @@ class KeyRicClassifier(KeyClassifier):
         op1, pos = self.neuronsXtoY([obDistance, obWidth, obHeight, scSpeed, diHeight], 5, 7, 0)
         op2, pos = self.neuronsXtoY(op1, 7, 7, pos)
         op3, pos = self.neuronsXtoY(op2, 7, 7, pos)
-        lastOp, pos = self.neuronsXtoY(op3, 7, 2, pos)# qtdWeight = 5*7+2*7*7+7*2 = 147
+        op4, pos = self.neuronsXtoY(op3, 7, 7, pos)
+        lastOp, pos = self.neuronsXtoY(op4, 7, 1, pos)# qtdWeight = 5*7+3*7*7+7 = 189
 
-        if lastOp[0] > lastOp[1] and lastOp[0] > 0.9:
+        if lastOp[0] > 0.9:
             return "K_UP"
-        elif lastOp[1] > lastOp[0] and lastOp[1] > 0.9:
-                return "K_DOWN"
-        return "K_NO"
+        return "K_DOWN"
+        #return "K_NO"
 
     def neuronsXtoY(self, value, input, output, position):
         neurons = []
@@ -396,12 +396,12 @@ def change_state(state, position, vs, vd):
 def change_state_Ric(state, position):
     aux = state.copy()
     s = state[position]
-    vs = random.randint(-10,10)
+    vs = random.randint(-20,20)
     ns = s + vs
-    if ns < -50:
-        ns += 100
-    if ns > 50:
-        ns -= 100
+    if ns < -100:
+        ns += 200
+    if ns > 100:
+        ns -= 200
     newState = aux[:position] + [(ns)] + aux[position + 1:]
     return mutation(newState, 0.1)
 
@@ -472,7 +472,7 @@ def mutation(state, mutatationRate):
     for it in range(state_size):
         rand = random.randint(0, 100)
         if rand < mutatationRate*100:
-            aux[it] =  random.randint(-50, 50)
+            aux[it] =  random.randint(-100, 100)
     return aux
 
 def mutationAll(states, mutatationRate):
@@ -488,7 +488,6 @@ def crossover(state1, state2, childrensQtd):
     for it in range(childrensQtd):
         randPos = random.randint(0, len(state1))
         newState = state1[:randPos] + state2[randPos:]
-        print(len(newState))
         childrens.append(mutation(newState, 0.1))
     return childrens
 
@@ -527,7 +526,7 @@ def begin(max_time):
     generation = 1
     
     for it in range(30):
-        newState = [random.randint(-50, 50) for col in range(147)]
+        newState = [random.randint(-100, 100) for col in range(189)]
         aiPlayer = KeyRicClassifier(newState)
         res, value = manyPlaysResults(plays)
         #print(newState, generation, it+1, value)
@@ -544,7 +543,7 @@ def begin(max_time):
         
         print("Time: ", time.process_time() - start)
         
-        neighborhood = generate_states(states, 10, 3, 8) #gerar 10 vizinhos para cada um dos 3 melhores e (8 crossovers * 3 * 2) 
+        neighborhood = generate_states(states, 4, 3, 5) #gerar (4*3) + 3 + (5 crossovers * 3 * 2) = 45
         states.clear()
 
         for s in neighborhood:
