@@ -423,7 +423,7 @@ def generate_weights(weights, neighborhoodQtd, crossoverQtd, bestValue):
     weightsQtd = len(weights)
     for it in range(weightsQtd):
         #auxNeighborhood += generate_x_neighborhood_Ric(weights[it][1], neighborhoodQtd, 1-weights[it][0]/bestValue)
-        auxNeighborhood += generate_randoms_neighborhood_Ric(weights[it][1], 0.5*weights[it][0]/bestValue, 1 - 1-weights[it][0]/bestValue)# max rate = 0.5
+        auxNeighborhood += generate_randoms_neighborhood_Ric(weights[it][1], 0.3*weights[it][0]/bestValue, 1 - 1-weights[it][0]/bestValue)# max rate = 0.3
         auxNeighborhood.append(weights[it][1])
 
     auxCrossover = []
