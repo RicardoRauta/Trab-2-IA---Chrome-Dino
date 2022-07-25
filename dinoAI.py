@@ -1,4 +1,4 @@
-from math import exp
+from math import exp, tanh
 from unittest import result
 import pygame
 import os
@@ -11,11 +11,13 @@ pygame.init()
 
 # Valid values: HUMAN_MODE or AI_MODE
 GAME_MODE = "AI_MODE"
+GRAPH = False
 
 # Global Constants
 SCREEN_HEIGHT = 600
 SCREEN_WIDTH = 1100
-SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+if GRAPH:
+    SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
 RUNNING = [pygame.image.load(os.path.join("Assets/Dino", "DinoRun1.png")),
            pygame.image.load(os.path.join("Assets/Dino", "DinoRun2.png"))]
@@ -228,21 +230,19 @@ def degrau(x):
         return 1
     return 0
 
-weightQtd = 147
+weightQtd = 85
 
 class KeyRicClassifier(KeyClassifier):
     def __init__(self, weight):
         self.weight = weight
 
     def keySelector(self, obDistance, obHeight, scSpeed, obWidth, diHeight, obType):
-        obTypeInt = 1
-        if obType == LargeCactus:
-            obTypeInt = 2
-        elif obType == Bird:
-            obTypeInt = 3
-        op = self.neuronsOp([obDistance, obHeight, obWidth, obTypeInt, scSpeed, diHeight], [6, 7, 7, 7, 1], sigmoid) # Total = 147
-
-        if op[0] > 0.5:
+        isFlying = 0
+        if obHeight > 50:
+            isFlying = 1
+        op = self.neuronsOp([obDistance, obHeight, obWidth, scSpeed, diHeight, isFlying], [6, 5, 5, 5, 1], degrau) # Total = 147
+        
+        if op[0] > 0:
             return "K_UP"
         else:
             return "K_DOWN"
@@ -262,7 +262,6 @@ class KeyRicClassifier(KeyClassifier):
                 for it2 in range(neurons[n-1]):
                     sum += prevNeurons[it2] * self.weight[position]
                     position += 1
-                #print(func)
                 newNeurons.append(func(sum))
         return newNeurons
 
@@ -302,10 +301,11 @@ def playGame():
         if points % 100 == 0:
             game_speed += 1
 
-        text = font.render("Points: " + str(int(points)), True, (0, 0, 0))
-        textRect = text.get_rect()
-        textRect.center = (1000, 40)
-        SCREEN.blit(text, textRect)
+        if GRAPH:
+            text = font.render("Points: " + str(int(points)), True, (0, 0, 0))
+            textRect = text.get_rect()
+            textRect.center = (1000, 40)
+            SCREEN.blit(text, textRect)
 
     def background():
         global x_pos_bg, y_pos_bg
@@ -323,7 +323,8 @@ def playGame():
                 run = False
                 exit()
 
-        SCREEN.fill((255, 255, 255))
+        if GRAPH:
+            SCREEN.fill((255, 255, 255))
 
         obDistance = 1500
         obHeight = 0
@@ -354,98 +355,68 @@ def playGame():
                 obstacles.append(Bird(BIRD))
 
         player.update(userInput)
-        player.draw(SCREEN)
+        if GRAPH:
+            player.draw(SCREEN)
 
         for obstacle in list(obstacles):
             obstacle.update()
-            obstacle.draw(SCREEN)
+            if GRAPH:
+                obstacle.draw(SCREEN)
 
-        background()
+        if GRAPH:
+            background()
 
-        cloud.draw(SCREEN)
+            cloud.draw(SCREEN)
         cloud.update()
 
         score()
 
-        clock.tick(600)#60
-        pygame.display.update()
+        if GRAPH:
+            clock.tick(60)#60
+        if GRAPH:
+            pygame.display.update()
 
         for obstacle in obstacles:
             if player.dino_rect.colliderect(obstacle.rect):
-                pygame.time.delay(200)#2000
+                if GRAPH:
+                    pygame.time.delay(2000)#2000
                 death_count += 1
                 return points
 
+# Genetic
 
-# Change State Operator
-
-def change_weight_Ric(weight, position, mutationRate):
-    aux = weight.copy()
-    s = weight[position]
-    vs = random.randint(-100,100)
-    ns = s + vs
-    if ns < -500:
-        ns += 1000
-    if ns > 500:
-        ns -= 500
-    newWeight = aux[:position] + [(ns)] + aux[position + 1:]
-    return mutation(newWeight, mutationRate)
-
-# Neighborhood
-
-def generate_x_neighborhood_Ric(weight, x, mutationRate):
-    neighborhood = []
-    weight_size = len(weight)
-    for it in range(x):
-        posToGet = random.randint(0,weight_size-1)
-        weight_to_change = weight
-        new_weights = [change_weight_Ric(weight_to_change, posToGet, mutationRate)]
-        for s in new_weights:
-            if s != []:
-                neighborhood.append(s)
-    return neighborhood
-
-def generate_randoms_neighborhood_Ric(weight, randomRate, mutationRate):
-    neighborhood = []
-    weight_size = len(weight)
-    for j in range(1):
-        for i in range(weight_size):
-            if random.randint(0,100) < 100*randomRate:
-                weight_to_change = weight
-                new_weights = [change_weight_Ric(weight_to_change, i, mutationRate)]
-                for s in new_weights:
-                    if s != []:
-                        neighborhood.append(s)
-    return neighborhood
-
-def generate_weights(weights, neighborhoodQtd, crossoverQtd, bestValue):    
-    auxNeighborhood = []
-    weightsQtd = len(weights)
-    for it in range(weightsQtd):
-        #auxNeighborhood += generate_x_neighborhood_Ric(weights[it][1], neighborhoodQtd, 1-weights[it][0]/bestValue)
-        auxNeighborhood += generate_randoms_neighborhood_Ric(weights[it][1], 0.3*weights[it][0]/bestValue, 1 - 1-weights[it][0]/bestValue)# max rate = 0.3
-        auxNeighborhood.append(weights[it][1])
-
+def generate_childs(weight_list, crossoverQtd, bestValue):
     auxCrossover = []
-    for it in range(weightsQtd):
-        for it2 in range(weightsQtd):
+    listSize = len(weight_list)
+    for it in range(listSize):
+        weight1 = weight_list[it][1]
+        auxCrossover.append(weight1)
+        for it2 in range(listSize):
             if it == it2:
                 continue
-            auxCrossover += crossover(weights[it][1], weights[it2][1], crossoverQtd, 1 - (weights[it][0] + weights[it2][0])/(2*bestValue))
-
-    return auxNeighborhood + auxCrossover
+            weight2 = weight_list[it2][1]
+            mutationRate = 0.33*(1 - (weight_list[it][0] + weight_list[it2][0])/(2*bestValue))
+            auxCrossover += crossover(weight1, weight2, crossoverQtd, mutationRate)
+    return auxCrossover
+    
 
 # Mutation
 
 def mutation(state, mutatationRate):
     aux = state.copy()
     if mutatationRate > 0.5:
-        mutatationRate = 0.5
+        mutatationRate += 0.5
+    if mutatationRate < 0.1:
+        mutatationRate += 0.05
     state_size = len(state)
     for it in range(state_size):
         rand = random.randint(0, 100)
         if rand < mutatationRate*100:
-            aux[it] =  random.randint(-500, 500)
+            aux[it] +=  random.randint(-50, 50)/100
+            if aux[it] < -1:
+                aux[it] += 1
+            if aux[it] > 1:
+                aux[it] -= 1
     return aux
         
 # Crossover
@@ -479,7 +450,7 @@ def run(max_time, initial_value):
     values_list = []
     count = 0
     for it in range(initial_size):
-            values_list .append([random.randint(-500, 500) for col in range(weightQtd)])
+            values_list .append([random.randint(-100, 100)/100 for col in range(weightQtd)])
     for newWeights in values_list:
         count += 1
         aiPlayer = KeyRicClassifier(newWeights)
@@ -487,7 +458,7 @@ def run(max_time, initial_value):
         if value > best_value:
             best_value = value
             best_state = newWeights
-        print(generation, count, value)
+        #print(generation, count, value)
         weights.append([value, newWeights])
     weights.sort(reverse=True)
     saveWeights(weights, generation, time.time() - start)
@@ -498,8 +469,8 @@ def run(max_time, initial_value):
     while end - start <= max_time:
         count = 0
         
-        print("Time: ", time.time() - start)
-        newWeights = generate_weights(weights[0 : 2], 11, 5, best_value) #gerar (11*3) vizinhos + 3 melhores repetidos + (4 * 3 * 2) crossovers = 33+3+24 = 60 listas por geração
+        #print("Time: ", time.time() - start)
+        newWeights = generate_childs(weights[0 : 5], 3, best_value)
         weights.clear()
 
         for s in newWeights:
@@ -509,7 +480,7 @@ def run(max_time, initial_value):
             if value > best_value:
                 best_value = value
                 best_state = s
-            print(generation, count, value)
+            #print(generation, count, value)
             weights.append([value, s])
         end = time.time()
         weights.sort(reverse=True)
@@ -523,8 +494,12 @@ def saveWeights(weights, gen, time):
     f = open("log.txt", "a")
     f.write("Generation: " + str(gen) + "\n")
     f.write("Time: " + str(time) + "\n\n")
+    it = 0
     for weight in weights:
+        it+=1
         f.write(str(weight) + "\n")
+        if it == 10:
+            break
     f.write("\n\n\n")
     f.close()
 
@@ -543,8 +518,8 @@ def manyPlaysResults(rounds):
 
 def main():
     global aiPlayer
-    initial_state = []#[-3, -9, 32, 43, -4, -48, -1, -36, -26, -8, 24, 8, -39, -37, -13, 1, 38, 0, 7, -39, 26, -49, 35, -37, 44, 44, 48, -43, 16, 37, 42, 26, -28, 22, 49, 38, -38, 12, -18, 3, -16, 33, 50, -39, 6, -31, 18, -40, 45, -28, 35, 28, -37, 45, -40, -13, -11, -5, 22, 35, -10, -20, 24, -17, 9, 11, 26, 33, -1, -38, 50, -38, 15, 30, 28, 30, 28, -15, -29, -27, 21, 36, 43, -37, -3, -23, -26, 3, 28, -46, 42, 38, 11, 16, -16, 11, -39, -17, -30, -36, 24, 36, 21, 7, -37, 13, 17, -46]
-    best_state, best_value = run(24*60*60/10, initial_state) # rodar por 24 horas
+    initial_state = []
+    best_state, best_value = run(24*60*60, initial_state) # rodar por 24 horas
     aiPlayer = KeyRicClassifier(best_state)
     res, value = manyPlaysResults(30)
     npRes = np.asarray(res)
@@ -554,5 +529,3 @@ def main():
 
 
 main()
-
-# 928.0595634974642, [-3, -9, 32, 43, -4, -48, -1, -36, -26, -8, 24, 8, -39, -37, -13, 1, 38, 0, 7, -39, 26, -49, 35, -37, 44, 44, 48, -43, 16, 37, 42, 26, -28, 22, 49, 38, -38, 12, -18, 3, -16, 33, 50, -39, 6, -31, 18, -40, 45, -28, 35, 28, -37, 45, -40, -13, -11, -5, 22, 35, -10, -20, 24, -17, 9, 11, 26, 33, -1, -38, 50, -38, 15, 30, 28, 30, 28, -15, -29, -27, 21, 36, 43, -37, -3, -23, -26, 3, 28, -46, 42, 38, 11, 16, -16, 11, -39, -17, -30, -36, 24, 36, 21, 7, -37, 13, 17, -46]
