@@ -1,10 +1,11 @@
-from math import tanh, exp
+from math import exp
 from unittest import result
 import pygame
 import os
 import random
 import time
 from sys import exit
+import matplotlib.pyplot as plt
 
 pygame.init()
 
@@ -213,31 +214,6 @@ class KeyClassifier:
     def updateState(self, state):
         pass
 
-
-def first(x):
-    return x[0]
-
-
-class KeySimplestClassifier(KeyClassifier):
-    def __init__(self, state):
-        self.state = state
-
-    def keySelector(self, distance, obHeight, speed, obType):
-        self.state = sorted(self.state, key=first)
-        for s, d in self.state:
-            if speed < s:
-                limDist = d
-                break
-        if distance <= limDist:
-            if isinstance(obType, Bird) and obHeight > 50:
-                return "K_DOWN"
-            else:
-                return "K_UP"
-        return "K_NO"
-
-    def updateState(self, state):
-        self.state = state
-
 def sigmoid(x):
     if x >= 0:
         z = exp(-x)
@@ -247,32 +223,48 @@ def sigmoid(x):
         z = exp(x)
         sig = z / (1 + z)
         return sig
+def degrau(x):
+    if x > 0:
+        return 1
+    return 0
+
+weightQtd = 147
 
 class KeyRicClassifier(KeyClassifier):
     def __init__(self, weight):
         self.weight = weight
 
-    def keySelector(self, obDistance, obHeight, scSpeed, obWidth, diHeight):
-        op1, pos = self.neuronsXtoY([obDistance, obWidth, obHeight, scSpeed, diHeight], 5, 7, 0)
-        op2, pos = self.neuronsXtoY(op1, 7, 7, pos)
-        op3, pos = self.neuronsXtoY(op2, 7, 7, pos)
-        op4, pos = self.neuronsXtoY(op3, 7, 7, pos)
-        lastOp, pos = self.neuronsXtoY(op4, 7, 1, pos)# qtdWeight = 5*7+3*7*7+7 = 189
+    def keySelector(self, obDistance, obHeight, scSpeed, obWidth, diHeight, obType):
+        obTypeInt = 1
+        if obType == LargeCactus:
+            obTypeInt = 2
+        elif obType == Bird:
+            obTypeInt = 3
+        op = self.neuronsOp([obDistance, obHeight, obWidth, obTypeInt, scSpeed, diHeight], [6, 7, 7, 7, 1], sigmoid) # Total = 147
 
-        if lastOp[0] > 0.9:
+        if op[0] > 0.5:
             return "K_UP"
-        return "K_DOWN"
-        #return "K_NO"
+        else:
+            return "K_DOWN"
+        return "K_NO"
 
-    def neuronsXtoY(self, value, input, output, position):
-        neurons = []
-        for it in range(output):
-            sum = 0
-            for it2 in range(input):
-                sum += value[it2] * self.weight[position]
-                position += 1
-            neurons.append(sigmoid(sum))
-        return [neurons, position]
+    def neuronsOp(self, value, neurons, func):
+        newNeurons = value.copy()
+        prevNeurons = []
+        position = 0
+        for n in range(len(neurons)):
+            if n == 0:
+                continue
+            prevNeurons = newNeurons.copy()
+            newNeurons.clear()
+            for it in range(neurons[n]):
+                sum = 0
+                for it2 in range(neurons[n-1]):
+                    sum += prevNeurons[it2] * self.weight[position]
+                    position += 1
+                #print(func)
+                newNeurons.append(func(sum))
+        return newNeurons
 
     def updateWeight(self, weight):
         self.weight = weight
@@ -347,11 +339,14 @@ def playGame():
         if GAME_MODE == "HUMAN_MODE":
             userInput = playerKeySelector()
         else:
-            userInput = aiPlayer.keySelector(obDistance, obHeight, game_speed, obWidth, player.getXY()[1])
+            userInput = aiPlayer.keySelector(obDistance, obHeight, game_speed, obWidth, player.getXY()[1], obType)
 
         if len(obstacles) == 0 or obstacles[-1].getXY()[0] < spawn_dist:
             spawn_dist = random.randint(0, 670)
-            if random.randint(0, 2) == 0:
+            onlyBird = False
+            if onlyBird:
+                obstacles.append(Bird(BIRD))
+            elif random.randint(0, 2) == 0:
                 obstacles.append(SmallCactus(SMALL_CACTUS))
             elif random.randint(0, 2) == 1:
                 obstacles.append(LargeCactus(LARGE_CACTUS))
@@ -384,83 +379,59 @@ def playGame():
 
 # Change State Operator
 
-def change_state(state, position, vs, vd):
-    aux = state.copy()
-    s, d = state[position]
+def change_weight_Ric(weight, position, mutationRate):
+    aux = weight.copy()
+    s = weight[position]
+    vs = random.randint(-100,100)
     ns = s + vs
-    nd = d + vd
-    if ns < 15 or nd > 1000:
-        return []
-    return aux[:position] + [(ns, nd)] + aux[position + 1:]
-
-def change_state_Ric(state, position):
-    aux = state.copy()
-    s = state[position]
-    vs = random.randint(-20,20)
-    ns = s + vs
-    if ns < -100:
-        ns += 200
-    if ns > 100:
-        ns -= 200
-    newState = aux[:position] + [(ns)] + aux[position + 1:]
-    return mutation(newState, 0.1)
+    if ns < -500:
+        ns += 1000
+    if ns > 500:
+        ns -= 500
+    newWeight = aux[:position] + [(ns)] + aux[position + 1:]
+    return mutation(newWeight, mutationRate)
 
 # Neighborhood
 
-def generate_neighborhood(state):
+def generate_x_neighborhood_Ric(weight, x, mutationRate):
     neighborhood = []
-    state_size = len(state)
-    for i in range(state_size):
-        d1 = random.randint(-5,5) 
-        d2 = random.randint(-5,5)
-        d3 = random.randint(-5,5)
-        d4 = random.randint(-5,5)
-
-        new_states = [change_state(state, i, d1), change_state(state, i, d2), change_state(state, i, d3), change_state(state, i, d4)]
-        for s in new_states:
+    weight_size = len(weight)
+    for it in range(x):
+        posToGet = random.randint(0,weight_size-1)
+        weight_to_change = weight
+        new_weights = [change_weight_Ric(weight_to_change, posToGet, mutationRate)]
+        for s in new_weights:
             if s != []:
                 neighborhood.append(s)
     return neighborhood
 
-def generate_neighborhood_Ric(state, p):
+def generate_randoms_neighborhood_Ric(weight, randomRate, mutationRate):
     neighborhood = []
-    state_size = len(state)
+    weight_size = len(weight)
     for j in range(1):
-        for i in range(state_size):
-            if random.randint(0,100) < 100*p:
-                state_to_change = state
-                new_states = [change_state_Ric(state_to_change, i)]
-                for s in new_states:
+        for i in range(weight_size):
+            if random.randint(0,100) < 100*randomRate:
+                weight_to_change = weight
+                new_weights = [change_weight_Ric(weight_to_change, i, mutationRate)]
+                for s in new_weights:
                     if s != []:
                         neighborhood.append(s)
     return neighborhood
 
-def generate_x_neighborhood_Ric(state, x):
-    neighborhood = []
-    state_size = len(state)
-    for it in range(x):
-        posToGet = random.randint(0,state_size-1)
-        state_to_change = state
-        new_states = [change_state_Ric(state_to_change, posToGet)]
-        for s in new_states:
-            if s != []:
-                neighborhood.append(s)
-    return neighborhood
-
-def generate_states(states, neighborhoodQtd, bestStatesQtd, crossoverQtd):
-    bests = states[0 : bestStatesQtd]
-    
+def generate_weights(weights, neighborhoodQtd, crossoverQtd, bestValue):    
     auxNeighborhood = []
-    for it in range(bestStatesQtd):
-        auxNeighborhood += generate_x_neighborhood_Ric(bests[it][1], neighborhoodQtd)
-        auxNeighborhood.append(bests[it][1])
+    weightsQtd = len(weights)
+    for it in range(weightsQtd):
+        #auxNeighborhood += generate_x_neighborhood_Ric(weights[it][1], neighborhoodQtd, 1-weights[it][0]/bestValue)
+        auxNeighborhood += generate_randoms_neighborhood_Ric(weights[it][1], 0.5*weights[it][0]/bestValue, 1 - 1-weights[it][0]/bestValue)# max rate = 0.5
+        auxNeighborhood.append(weights[it][1])
 
     auxCrossover = []
-    for it in range(bestStatesQtd):
-        for it2 in range(bestStatesQtd):
+    for it in range(weightsQtd):
+        for it2 in range(weightsQtd):
             if it == it2:
                 continue
-            auxCrossover += crossover(bests[it][1], bests[it2][1], crossoverQtd)
+            auxCrossover += crossover(weights[it][1], weights[it2][1], crossoverQtd, 1 - (weights[it][0] + weights[it2][0])/(2*bestValue))
 
     return auxNeighborhood + auxCrossover
 
@@ -468,108 +439,92 @@ def generate_states(states, neighborhoodQtd, bestStatesQtd, crossoverQtd):
 
 def mutation(state, mutatationRate):
     aux = state.copy()
+    if mutatationRate > 0.5:
+        mutatationRate = 0.5
     state_size = len(state)
     for it in range(state_size):
         rand = random.randint(0, 100)
         if rand < mutatationRate*100:
-            aux[it] =  random.randint(-100, 100)
+            aux[it] =  random.randint(-500, 500)
     return aux
-
-def mutationAll(states, mutatationRate):
-    aux = []
-    states_qtd = len(states)
-    for it in range(states_qtd):
-        aux.append(mutation(states[it][1], mutatationRate))
         
 # Crossover
 
-def crossover(state1, state2, childrensQtd):
+def crossover(state1, state2, childrensQtd, mutationRate):
     childrens = []
     for it in range(childrensQtd):
         randPos = random.randint(0, len(state1))
         newState = state1[:randPos] + state2[randPos:]
-        childrens.append(mutation(newState, 0.1))
+        childrens.append(mutation(newState, mutationRate))
     return childrens
 
-# Gradiente Ascent
-
-def gradient_ascent(state, max_time):
-    start = time.process_time()
-    res, max_value = manyPlaysResults(1)
-    better = True
-    end = 0
-    while better and end - start <= max_time:
-        neighborhood = generate_neighborhood(state)
-        better = False
-        for s in neighborhood:
-            aiPlayer = KeyRicClassifier(s)
-            print(s)
-            res, value = manyPlaysResults(1)
-            if value > max_value:
-                state = s
-                max_value = value
-                better = True
-        end = time.process_time()
-    return state, max_value
-
-def begin(max_time):
+def run(max_time, initial_value):
     global aiPlayer
+
+    #### Inicializar arquivo de log vazio
     f = open("log.txt", "w")
     f.write("")
     f.close()
+    ####
+
     plays = 3
-    start = time.process_time()
-    res = 0
-    states = []
-    better = True
+    start = time.time()
+    weights = []
     end = 0
     generation = 1
+    best_value = 0
     
-    for it in range(30):
-        newState = [random.randint(-100, 100) for col in range(189)]
-        aiPlayer = KeyRicClassifier(newState)
-        res, value = manyPlaysResults(plays)
-        #print(newState, generation, it+1, value)
-        print(generation, it+1, value)
-        states.append([value, newState])
+    #### Testar 30 listas de pesos aleatórias
+    initial_size = 30
+    values_list = []
+    count = 0
+    for it in range(initial_size):
+            values_list .append([random.randint(-500, 500) for col in range(weightQtd)])
+    for newWeights in values_list:
+        count += 1
+        aiPlayer = KeyRicClassifier(newWeights)
+        _, value = manyPlaysResults(plays)
+        if value > best_value:
+            best_value = value
+            best_state = newWeights
+        print(generation, count, value)
+        weights.append([value, newWeights])
+    weights.sort(reverse=True)
+    saveWeights(weights, generation, time.time() - start)
+    ####
 
-    states.sort()
-    states.reverse()
-    saveStates(states, generation, time.process_time() - start)
-
+    #### Aplicar metaheuristica em busca de encontrar melhores pesos 
     generation+=1
     while end - start <= max_time:
-        it = 0
+        count = 0
         
-        print("Time: ", time.process_time() - start)
-        
-        neighborhood = generate_states(states, 4, 3, 5) #gerar (4*3) + 3 + (5 crossovers * 3 * 2) = 45
-        states.clear()
+        print("Time: ", time.time() - start)
+        newWeights = generate_weights(weights[0 : 2], 11, 5, best_value) #gerar (11*3) vizinhos + 3 melhores repetidos + (4 * 3 * 2) crossovers = 33+3+24 = 60 listas por geração
+        weights.clear()
 
-        for s in neighborhood:
-            it+= 1
+        for s in newWeights:
+            count += 1
             aiPlayer = KeyRicClassifier(s)
-            
-            res, value = manyPlaysResults(plays)
-            #print(s, generation, it, value)
-            print(generation, it, value)
-            states.append([value, s])
-        end = time.process_time()
-        states.sort()
-        states.reverse()
-        saveStates(states, generation, time.process_time() - start)
+            _, value = manyPlaysResults(plays)
+            if value > best_value:
+                best_value = value
+                best_state = s
+            print(generation, count, value)
+            weights.append([value, s])
+        end = time.time()
+        weights.sort(reverse=True)
+        saveWeights(weights, generation, time.time() - start)
         generation+=1
-    best_state = states[0][1]
-    best_value = states[0][0]
-    print(best_state)
+    ####
+    
     return best_state, best_value
 
-def saveStates(states, gen, time):
+def saveWeights(weights, gen, time):
     f = open("log.txt", "a")
     f.write("Generation: " + str(gen) + "\n")
     f.write("Time: " + str(time) + "\n\n")
-    for state in states:
-        f.write(str(state) + "\n")
+    for weight in weights:
+        f.write(str(weight) + "\n")
     f.write("\n\n\n")
     f.close()
 
@@ -588,7 +543,8 @@ def manyPlaysResults(rounds):
 
 def main():
     global aiPlayer
-    best_state, best_value = begin(24*60*60) # rodar por 24 horas
+    initial_state = []#[-3, -9, 32, 43, -4, -48, -1, -36, -26, -8, 24, 8, -39, -37, -13, 1, 38, 0, 7, -39, 26, -49, 35, -37, 44, 44, 48, -43, 16, 37, 42, 26, -28, 22, 49, 38, -38, 12, -18, 3, -16, 33, 50, -39, 6, -31, 18, -40, 45, -28, 35, 28, -37, 45, -40, -13, -11, -5, 22, 35, -10, -20, 24, -17, 9, 11, 26, 33, -1, -38, 50, -38, 15, 30, 28, 30, 28, -15, -29, -27, 21, 36, 43, -37, -3, -23, -26, 3, 28, -46, 42, 38, 11, 16, -16, 11, -39, -17, -30, -36, 24, 36, 21, 7, -37, 13, 17, -46]
+    best_state, best_value = run(24*60*60/10, initial_state) # rodar por 24 horas
     aiPlayer = KeyRicClassifier(best_state)
     res, value = manyPlaysResults(30)
     npRes = np.asarray(res)
@@ -599,6 +555,4 @@ def main():
 
 main()
 
-# 5-6-6-6-2: 369.34166666666664 187.4603233946379 181.88134327202874
-# 5-7-7-7-2:
-#
+# 928.0595634974642, [-3, -9, 32, 43, -4, -48, -1, -36, -26, -8, 24, 8, -39, -37, -13, 1, 38, 0, 7, -39, 26, -49, 35, -37, 44, 44, 48, -43, 16, 37, 42, 26, -28, 22, 49, 38, -38, 12, -18, 3, -16, 33, 50, -39, 6, -31, 18, -40, 45, -28, 35, 28, -37, 45, -40, -13, -11, -5, 22, 35, -10, -20, 24, -17, 9, 11, 26, 33, -1, -38, 50, -38, 15, 30, 28, 30, 28, -15, -29, -27, 21, 36, 43, -37, -3, -23, -26, 3, 28, -46, 42, 38, 11, 16, -16, 11, -39, -17, -30, -36, 24, 36, 21, 7, -37, 13, 17, -46]
