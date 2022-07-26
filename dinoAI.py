@@ -11,7 +11,7 @@ pygame.init()
 
 # Valid values: HUMAN_MODE or AI_MODE
 GAME_MODE = "AI_MODE"
-GRAPH = False
+GRAPH = True
 
 # Global Constants
 SCREEN_HEIGHT = 600
@@ -230,21 +230,18 @@ def degrau(x):
         return 1
     return 0
 
-weightQtd = 85
+weightQtd = 78
 
 class KeyRicClassifier(KeyClassifier):
     def __init__(self, weight):
         self.weight = weight
 
-    def keySelector(self, obDistance, obHeight, scSpeed, obWidth, diHeight, obType):
-        isFlying = 0
-        if obHeight > 50:
-            isFlying = 1
-        op = self.neuronsOp([obDistance, obHeight, obWidth, scSpeed, diHeight, isFlying], [6, 5, 5, 5, 1], degrau) # Total = 147
+    def keySelector(self, obDistance, obHeight, scSpeed, obWidth, diHeight, obDistance2, obHeight2, obWidth2):
+        op = self.neuronsOp([obDistance, obHeight, obWidth, scSpeed, diHeight], [5, 6, 6, 2], sigmoid) # Total = 78
         
-        if op[0] > 0:
+        if op[1] < op[0] and op[0] > 0.8:
             return "K_UP"
-        else:
+        elif op[1] > op[0] and op[1] > 0.8:
             return "K_DOWN"
         return "K_NO"
 
@@ -330,17 +327,25 @@ def playGame():
         obHeight = 0
         obType = 2
         obWidth = 0
+        obDistance2 = 0
+        obHeight2 = 0
+        obWidth2 = 0
         if len(obstacles) != 0:
             xy = obstacles[0].getXY()
             obDistance = xy[0]
             obHeight = obstacles[0].getHeight()
             obType = obstacles[0]
             obWidth = obstacles[0].rect.width
+        if len(obstacles) > 1:
+            xy2 = obstacles[1].getXY()
+            obDistance2 = xy2[0]
+            obHeight2 = obstacles[1].getHeight()
+            obWidth2 = obstacles[1].rect.width
 
         if GAME_MODE == "HUMAN_MODE":
             userInput = playerKeySelector()
         else:
-            userInput = aiPlayer.keySelector(obDistance, obHeight, game_speed, obWidth, player.getXY()[1], obType)
+            userInput = aiPlayer.keySelector(obDistance, obHeight, game_speed, obWidth, player.getXY()[1], obDistance2, obHeight2, obWidth2)
 
         if len(obstacles) == 0 or obstacles[-1].getXY()[0] < spawn_dist:
             spawn_dist = random.randint(0, 670)
@@ -395,23 +400,23 @@ def generate_childs(weight_list, crossoverQtd, bestValue):
             if it == it2:
                 continue
             weight2 = weight_list[it2][1]
-            mutationRate = 0.33*(1 - (weight_list[it][0] + weight_list[it2][0])/(2*bestValue))
+            mutationRate = 0.25*(1 - (weight_list[it][0] + weight_list[it2][0])/(2*bestValue))
             auxCrossover += crossover(weight1, weight2, crossoverQtd, mutationRate)
     return auxCrossover
     
 
 # Mutation
 
-def mutation(state, mutatationRate):
+def mutation(state, mutationRate):
     aux = state.copy()
-    if mutatationRate > 0.5:
-        mutatationRate += 0.5
-    if mutatationRate < 0.1:
-        mutatationRate += 0.05
+    if mutationRate > 0.5:
+        mutationRate += 0.5
+    if mutationRate < 0.1:
+        mutationRate += 0.05
     state_size = len(state)
     for it in range(state_size):
         rand = random.randint(0, 100)
-        if rand < mutatationRate*100:
+        if rand < mutationRate*100:
             aux[it] +=  random.randint(-50, 50)/100
             if aux[it] < -1:
                 aux[it] += 1
@@ -527,5 +532,13 @@ def main():
     f = open("log.txt", "a")
     f.write("Result: \n" + str(res) + "\nMean: " + str(npRes.mean()) + "\nStd: " + str(npRes.std()) + "\nValue: " + str(value))
 
+def testValue():
+    global aiPlayer
+    test_state = [0.07, -0.5899999999999999, 0.44, 0.2900000000000001, 0.030000000000000054, -0.48, -0.63, -0.19999999999999993, -0.72, -0.62, 0.6, -0.06000000000000011, 0.32000000000000006, 0.9700000000000001, 0.04000000000000009, -0.30000000000000004, -0.03999999999999998, -0.78, -0.6599999999999998, 0.92, 0.6900000000000001, -0.33999999999999986, 0.11000000000000001, -0.6699999999999999, -0.51, 0.1, 0.06999999999999995, 0.06000000000000001, 0.36000000000000004, -0.6399999999999999, 0.37999999999999995, 0.21000000000000005, 0.04000000000000001, 0.13999999999999999, -0.5900000000000001, 0.33, 0.5199999999999999, -0.6300000000000001, 0.2399999999999999, 0.8400000000000001, -0.45999999999999996, -0.8899999999999999, -0.41, 0.06999999999999995, 0.38, 0.43000000000000005, -0.73, 0.06999999999999995, 0.14, 1.0, 0.19, -0.86, -0.19999999999999996, 0.75, -0.23000000000000004, -0.21000000000000013, -0.9700000000000001, 0.5299999999999998, -0.44999999999999996, -0.21999999999999978, -0.25999999999999995, -0.30999999999999983, 0.44000000000000017, -0.43000000000000005, 0.35999999999999993, -0.72, 0.86, 0.9500000000000002, 0.42, 0.47000000000000003, -0.23000000000000012, -0.57, 0.23999999999999994, -0.10999999999999988, -0.4999999999999999, -0.33000000000000007, 0.05, 0.20999999999999996]
+    aiPlayer = KeyRicClassifier(test_state)
+    res, value = manyPlaysResults(30)
+    npRes = np.asarray(res)
+    print(res, npRes.mean(), npRes.std(), value)
 
-main()
+#main()
+testValue()
