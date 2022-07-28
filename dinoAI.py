@@ -230,7 +230,7 @@ def degrau(x):
         return 1
     return 0
 
-weightQtd = 60
+weightQtd = 35
 
 class KeyRicClassifier(KeyClassifier):
     def __init__(self, weight):
@@ -238,7 +238,7 @@ class KeyRicClassifier(KeyClassifier):
 
     def keySelector(self, obDistance, obHeight, scSpeed, obWidth, diHeight, obDistance2, obHeight2, obWidth2):
         
-        op = self.neuronsOp([obDistance, obHeight, obWidth, scSpeed, diHeight], [5, 5, 2], [sigmoid, degrau]) # Total = 60
+        op = self.neuronsOp([obDistance, obHeight, obWidth, scSpeed, diHeight], [5, 5, 2], [sigmoid, degrau]) # Total = 35
         
         if op[0] == 1:
             return "K_UP"
